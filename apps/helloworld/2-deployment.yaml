@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-app
+  namespace: helloworld
+spec:
+  replicas: 2 # Vamos começar com 2 pods
+  selector:
+    matchLabels:
+      app: hello-app
+  template:
+    metadata:
+      labels:
+        app: hello-app
+    spec:
+      containers:
+      - name: hello-container
+        image: nginxdemos/hello # Uma imagem de exemplo que roda um servidor web
+        ports:
+        - containerPort: 80
