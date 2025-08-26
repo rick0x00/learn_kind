@@ -1,0 +1,50 @@
+# argocd-values.yaml
+
+# server:
+#   ingress:
+#     enabled: true
+#     ingressClassName: nginx
+#     hosts:
+#       - argocd.test 
+#     https: false
+
+
+# redis-ha:
+#   enabled: false
+
+# # Garante que o controller não use um volume persistente
+# controller:
+#   metrics:
+#     enabled: true
+#   persistence:
+#     enabled: false
+
+
+config:
+  params:
+    server.insecure: true
+
+global:
+  domain: argocd.test
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - argocd.test
+    extraHosts:
+      - name: argocd.test
+        path: / 
+    https: false
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  extraArgs:
+    - --insecure
+
+controller:
+  persistence:
+    enabled: false
+
+redis-ha:
+  enabled: false

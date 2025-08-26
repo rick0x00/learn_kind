@@ -1,0 +1,114 @@
+# Taskfile.yml
+
+# docs: https://taskfile.dev/
+
+version: '3'
+
+vars:
+  KIND_VERSION: v0.23.0
+  KUBECTL_VERSION: v1.30.2
+  CLUSTER_NAME: wsl-dev
+  GRAFANA_RELEASE: my-grafana
+
+tasks:
+  default:
+    desc: "Lists all available tasks."
+    cmds:
+      - task --list-all
+
+  install:
+    desc: "Installs all required tools: Docker, kubectl, and kind."
+    # The order of dependencies is important.
+    deps: [install-docker, install-kubectl, install-kind]
+
+  # install-docker:
+  #   desc: "Installs Docker Engine inside WSL (requires sudo)."
+  #   cmds:
+  #     - curl -fsSL https://get.docker.com | bash
+  #   status:
+  #     # This task is up-to-date if the 'docker' command exists
+  #     - command -v docker
+
+  install-kubectl:
+    desc: "Installs the Kubernetes CLI (kubectl)."
+    cmds:
+      - |
+        curl -LO "https://dl.k8s.io/release/{{.KUBECTL_VERSION}}/bin/linux/amd64/kubectl"
+        chmod +x ./kubectl
+        sudo mv ./kubectl /usr/local/bin/kubectl
+    status:
+      - command -v kubectl
+
+  install-kind:
+    desc: "Installs Kind."
+    cmds:
+      - |
+        curl -Lo ./kind "https://kind.sigs.k8s.io/dl/{{.KIND_VERSION}}/kind-linux-amd64"
+        chmod +x ./kind
+        sudo mv ./kind /usr/local/bin/kind
+    status:
+      - command -v kind
+
+  cluster-up:
+    desc: "Creates a Kind cluster named '{{.CLUSTER_NAME}}'."
+    deps: [install]
+    cmds:
+      - kind create cluster --name {{.CLUSTER_NAME}}
+    status:
+      # This task is up-to-date if grep finds the cluster name.
+      # If grep fails (cluster not found), the task will run.
+      - 'kind get clusters | grep -q "^{{.CLUSTER_NAME}}$"'
+
+  cluster-down:
+    desc: "Deletes the Kind cluster."
+    cmds:
+      - kind delete cluster --name {{.CLUSTER_NAME}}
+
+  cluster-info:
+    desc: "Shows cluster info and current nodes."
+    cmds:
+      - kubectl cluster-info --context kind-{{.CLUSTER_NAME}}
+      - kubectl get nodes
+
+  install-helm:
+    desc: "Installs the Helm CLI using the official script."
+    cmds:
+      - curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    status:
+      - command -v helm
+
+  install-helmfile:
+    desc: "Install the Helmfile CLI Using official script."
+    cmds:
+      - |
+        curl -L https://github.com/helmfile/helmfile/releases/download/v0.165.0/helmfile_0.165.0_linux_amd64.tar.gz | tar xz
+        sudo mv helmfile /usr/local/bin/
+        sudo chmod +x  /usr/local/bin/helmfile
+    status:
+      - command -v helmfile
+
+  helm-install-grafana:
+    desc: "Installs Grafana from the official chart."
+    cmds:
+      - helm repo add grafana https://grafana.github.io/helm-charts
+      - helm repo update
+      - helm install {{.GRAFANA_RELEASE}} grafana/grafana
+
+  helm-uninstall-grafana:
+    desc: "Uninstalls the Grafana release."
+    cmds:
+      - helm uninstall {{.GRAFANA_RELEASE}}
+
+  grafana-access:
+    desc: "Shows Grafana password and starts port-forwarding."
+    cmds:
+      - |
+        echo "--------------------------------------------------"
+        echo "Grafana Access for release '{{.GRAFANA_RELEASE}}'"
+        echo "URL: http://localhost:3000"
+        echo "User: admin"
+        echo -e "Password: "
+        kubectl get secret {{.GRAFANA_RELEASE}} -o jsonpath="{.data.admin-password}" | base64 --decode
+        echo -e "\n--------------------------------------------------"
+        echo "Starting port-forward. Press Ctrl+C to stop."
+        kubectl port-forward svc/{{.GRAFANA_RELEASE}} 3000:80

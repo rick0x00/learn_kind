@@ -1,0 +1,29 @@
+# helmfile.yaml 
+
+repositories:
+  - name: grafana
+    url: https://grafana.github.io/helm-charts
+
+  - name: argo
+    url: https://argoproj.github.io/argo-helm
+
+releases:
+  - name: grafana-dev
+    chart: grafana/grafana
+    namespace: monitoring
+    createNamespace: true
+    labels:
+      resource: grafana-dev
+    values:
+      - grafana-values.yaml
+
+  - name: argocd
+    chart: argo/argo-cd
+    version: "6.7.13"
+    namespace: argocd
+    createNamespace: true
+    labels:
+      resource: argocd
+    values:
+      - argocd-values.yaml
+
