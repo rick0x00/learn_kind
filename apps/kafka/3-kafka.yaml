@@ -1,0 +1,77 @@
+# apps/kafka/3-kafka.yaml
+
+# 1. O Service para o Kafka Broker
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-service
+  namespace: kafka
+spec:
+  selector:
+    app: kafka
+  ports:
+    - protocol: TCP
+      port: 9092
+      targetPort: 9092
+---
+# 2. A Solicitação de Volume Persistente (PVC) para o Kafka
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kafka-pvc
+  namespace: kafka
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi # Solicitando 1GB de espaço
+---
+# 3. O StatefulSet, que gerencia os pods do Kafka
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka-sts
+  namespace: kafka
+spec:
+  selector:
+    matchLabels:
+      app: kafka
+  serviceName: kafka-service
+  replicas: 1 # Como no tutorial, apenas 1 réplica
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+      - name: kafka
+        image: confluentinc/cp-kafka:latest
+        ports:
+        - containerPort: 9092
+        env:
+        - name: KAFKA_BROKER_ID
+          value: "1"
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          # Aponta para o serviço do Zookeeper que criamos
+          value: 'zookeeper-service.kafka.svc.cluster.local:2181'
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+        - name: KAFKA_ADVERTISED_LISTENERS
+          # Como outros pods dentro do cluster vão se conectar
+          value: PLAINTEXT://kafka-sts-0.kafka-service.kafka.svc.cluster.local:9092,PLAINTEXT_INTERNAL://localhost:29092
+        - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+          value: "1"
+        - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
+          value: "0"
+        volumeMounts:
+        - name: kafka-storage
+          mountPath: /var/lib/kafka/data
+  volumeClaimTemplates:
+  - metadata:
+      name: kafka-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
