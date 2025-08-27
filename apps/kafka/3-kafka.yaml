@@ -50,6 +50,10 @@ spec:
         ports:
         - containerPort: 9092
         env:
+        # docker run --rm confluentinc/cp-kafka:latest kafka-storage random-uuid
+        # get cluster ID
+        - name: CLUSTER_ID
+          value: IV6wSHNhSv2et-HH_P4yzw
         - name: KAFKA_PROCESS_ROLES
           value: "broker"
         - name: KAFKA_BROKER_ID
