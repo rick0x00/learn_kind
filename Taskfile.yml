@@ -19,7 +19,7 @@ tasks:
   install:
     desc: "Installs all required tools: Docker, kubectl, and kind."
     # The order of dependencies is important.
-    deps: [install-docker, install-kubectl, install-kind]
+    deps: [ install-kubectl, install-kind]
 
   # install-docker:
   #   desc: "Installs Docker Engine inside WSL (requires sudo)."

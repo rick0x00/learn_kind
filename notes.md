@@ -26,3 +26,54 @@ kubectl logs -n ingress-nginx ingress-nginx-controller-bd44dc47-clmn4 | tail -n 
 
 # get actual argocd pass
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+
+
+
+
+## debug error: You must be logged in to the server (the server has asked for the client to provide credentials ( pods/log ingress-nginx-controller-bd44dc47-clmn4))
+
+kind get clusters
+
+kind get kubeconfig --name wsl-dev > ~/.kube/config
+
+
+
+### find . \( $EXCLUDED_DIRS \) -prune -o -type f -exec bash -c "echo '### => {}' ; cat {}" \;
+
+EXCLUDED_DIRS=" -path ./.git -o -path ./default_values_ref"
+find . \( $EXCLUDED_DIRS \) -prune -o -type f -exec bash -c "echo '### => {}'" \;
+find . \( $EXCLUDED_DIRS \) -prune -o -type f -exec bash -c "echo '### => {}' ; cat {} " \;
+
+
+
+kind create cluster --config kind-config-ingress.yaml --name wsl-dev
+
+
+kind get clusters
+kind create cluster --config kind-config-ingress.yaml --name wsl-dev
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+
+kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=120s
+
+
+  468  kind get clusters
+  469  kind delete cluster name desktop
+  470  kind delete cluster --name desktop
+  471  kind delete cluster --name kind
+  472  tree
+  473  kind get clusters
+  474  kind create cluster --config kind-config-ingress.yaml --name wsl-dev
+  475  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+  476  kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=120s
+  477  helmfile sync
+  478  history
+
+
+  kubectl get ingress --all-namespaces
+
+
+  curl -k http://127.0.0.1 -H "Host: hello.test"
+
+  curl -k http://127.0.0.1 -H "Host: argocd.test"
+  
