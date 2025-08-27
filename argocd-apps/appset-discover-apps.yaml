@@ -1,0 +1,32 @@
+# argocd-apps/appset-discover-apps.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: discover-apps-in-git
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/rick0x00/learn_kind.git
+      revision: HEAD
+      directories:
+      - path: apps/*
+
+  template:
+    metadata:
+      name: '{{path.basename}}'
+    spec:
+      project: "default"
+      source:
+        repoURL: https://github.com/rick0x00/learn_kind.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: "https://kubernetes.default.svc"
+        namespace: '{{path.basename}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
