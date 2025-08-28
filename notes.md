@@ -76,4 +76,6 @@ kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.
   curl -k http://127.0.0.1 -H "Host: hello.test"
 
   curl -k http://127.0.0.1 -H "Host: argocd.test"
-  
+
+
+kubectl run -it --rm --image=busybox:1.28 dns-test -- nslookup kafka-sts-0.kafka-service.kafka.svc.cluster.local
