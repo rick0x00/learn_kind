@@ -10,34 +10,27 @@ on:
       - main
 
 jobs:
-  lint-and-validate:
+  validate:
     runs-on: self-hosted
+
     steps:
-      - name: Checkout code
+      - name: 1. Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Kubectl
+      - name: 2. Setup Taskfile
+        run: |
+          # Checa se o 'task' já existe, senão, instala
+          if ! command -v task &> /dev/null; then
+            echo "Taskfile not found. Installing..."
+            sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+          else
+            echo "Taskfile is already installed."
+          fi
+
+      - name: 3. Setup Kubectl
         uses: azure/setup-kubectl@v3
         with:
-          version: 'v1.28.2'
-        id: install
+          version: 'v1.30.2'
 
-      - name: Validate K8s Manifests with Dry Run
-        run: |
-          echo "--> Validating all YAML files in apps/ directory..."
-          find ./apps -type f -name "*.yaml" | while read -r file; do
-            echo "--> Checking file: $file"
-            kubectl apply -f "$file" --dry-run=client
-            if [ $? -ne 0 ]; then
-              echo "❌ Validation failed for $file"
-              exit 1
-            fi
-            echo "✅ $file is valid"
-          done
-          echo "� All manifests are valid!"
-
-      - name: Lint Helmfile (Bônus)
-        if: hash helmfile 2>/dev/null
-        run: |
-          echo "--> Linting Helmfile..."
-          helmfile lint
+      - name: 4. Run Validation Task
+        run: task ci:validate

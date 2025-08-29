@@ -112,3 +112,36 @@ tasks:
         echo -e "\n--------------------------------------------------"
         echo "Starting port-forward. Press Ctrl+C to stop."
         kubectl port-forward svc/{{.GRAFANA_RELEASE}} 3000:80
+
+  ci:validate:
+    desc: "Runs lint and validation checks for CI/CD pipelines."
+    cmds:
+      - |
+        echo "▶️  Starting Kubernetes manifest validation..."
+        VALID=true
+        find ./apps -type f \( -name "*.yaml" -o -name "*.yml" \) | while read -r file; do
+          echo "� Checking file: $file"
+          # Usamos --dry-run=client para validar a sintaxe sem acessar o cluster
+          if ! kubectl apply -f "$file" --dry-run=client > /dev/null; then
+            echo "❌ Validation FAILED for $file"
+            VALID=false
+          fi
+        done
+        if [ "$VALID" = "false" ]; then
+          echo "� One or more manifest validations failed."
+          exit 1
+        fi
+        echo "✅ All Kubernetes manifests are valid!"
+        echo
+      - |
+        # Agora, checamos o Helmfile
+        if command -v helmfile &> /dev/null; then
+          echo "▶️  Starting Helmfile lint..."
+          helmfile lint
+          echo "✅ Helmfile lint completed!"
+        else
+          echo "⚠️  helmfile command not found, skipping lint."
+        fi
+
+
+
