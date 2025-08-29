@@ -1,0 +1,43 @@
+# .github/workflows/validate-manifests.yml
+name: Validate K8s Manifests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint-and-validate:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.2'
+        id: install
+
+      - name: Validate K8s Manifests with Dry Run
+        run: |
+          echo "--> Validating all YAML files in apps/ directory..."
+          find ./apps -type f -name "*.yaml" | while read -r file; do
+            echo "--> Checking file: $file"
+            kubectl apply -f "$file" --dry-run=client
+            if [ $? -ne 0 ]; then
+              echo "❌ Validation failed for $file"
+              exit 1
+            fi
+            echo "✅ $file is valid"
+          done
+          echo "� All manifests are valid!"
+
+      - name: Lint Helmfile (Bônus)
+        if: hash helmfile 2>/dev/null
+        run: |
+          echo "--> Linting Helmfile..."
+          helmfile lint
