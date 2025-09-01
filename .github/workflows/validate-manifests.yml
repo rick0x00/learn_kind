@@ -30,7 +30,7 @@ jobs:
 
       - name: 3. Install Task and Run Validation
         run: |
-          apt udpate && apt install -y curl
+          apt update && apt install -y curl
           # Instala o Taskfile se não existir
           if ! command -v task &> /dev/null; then
             echo "Taskfile not found. Installing..."
