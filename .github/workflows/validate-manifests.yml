@@ -28,7 +28,7 @@ jobs:
           apt update && apt install -y wget tar curl
           wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
           tar xf kubeval-linux-amd64.tar.gz
-          sudo mv kubeval /usr/local/bin
+          mv kubeval /usr/local/bin
 
       - name: 3. Validate Kubernetes Manifests
         run: kubeval --ignore-missing-schemas ./apps
