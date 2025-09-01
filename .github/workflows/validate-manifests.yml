@@ -25,6 +25,7 @@ jobs:
 
       - name: 2. Install Kubeval
         run: |
+          apt update && apt install -y wget tar curl
           wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
           tar xf kubeval-linux-amd64.tar.gz
           sudo mv kubeval /usr/local/bin
