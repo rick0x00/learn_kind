@@ -1,0 +1,17 @@
+# runner-autoscaler.yaml
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: HorizontalRunnerAutoscaler
+metadata:
+  name: github-runner-autoscaler
+  namespace: github-runners
+spec:
+  scaleTargetRef:
+    name: github-runner-deployment
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: PercentageRunnersBusy
+    scaleUpThreshold: '0.75'
+    scaleDownThreshold: '0.25'
+    scaleUpFactor: '2'
+    scaleDownFactor: '0.5'

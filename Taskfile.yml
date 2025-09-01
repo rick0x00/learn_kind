@@ -21,13 +21,13 @@ tasks:
     # The order of dependencies is important.
     deps: [install-docker, install-kubectl, install-kind]
 
-  # install-docker:
-  #   desc: "Installs Docker Engine inside WSL (requires sudo)."
-  #   cmds:
-  #     - curl -fsSL https://get.docker.com | bash
-  #   status:
-  #     # This task is up-to-date if the 'docker' command exists
-  #     - command -v docker
+  install-docker:
+    desc: "Installs Docker Engine inside WSL (requires sudo)."
+    cmds:
+      - curl -fsSL https://get.docker.com | bash
+    status:
+      # This task is up-to-date if the 'docker' command exists
+      - command -v docker
 
   install-kubectl:
     desc: "Installs the Kubernetes CLI (kubectl)."

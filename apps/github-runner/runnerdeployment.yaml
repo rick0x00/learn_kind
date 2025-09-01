@@ -1,0 +1,13 @@
+# runner-deployment.yaml
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: RunnerDeployment
+metadata:
+  name: github-runner-deployment
+  namespace: github-runners
+spec:
+  template:
+    spec:
+      repository: rick0x00/learn_kind
+      labels:
+        - self-hosted
+        - kind-runner

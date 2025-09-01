@@ -1,0 +1,26 @@
+# .github/workflows/kind-test.yaml
+name: Test Kubernetes Runner
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy-on-kind:
+    runs-on: [self-hosted, kind-runner]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Show Kubernetes context
+        run: |
+          echo "=> Verificando o acesso ao Kubernetes de dentro do runner..."
+          kubectl config get-contexts
+          echo ""
+          echo "=> Listando todos os pods no cluster..."
+          kubectl get pods --all-namespaces
+          echo ""
+          echo "=> Deploy de teste concluído com sucesso!"
