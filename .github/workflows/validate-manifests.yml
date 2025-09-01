@@ -16,6 +16,10 @@ jobs:
   validate:
     runs-on: self-hosted
 
+    container:
+      image: ubuntu:22.04
+      options: --privileged
+
     steps:
       - name: 1. Checkout Code
         uses: actions/checkout@v4
