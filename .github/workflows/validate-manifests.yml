@@ -18,27 +18,26 @@ jobs:
 
     container:
       image: ubuntu:22.04
-      options: --privileged
 
     steps:
       - name: 1. Checkout Code
         uses: actions/checkout@v4
 
-      - name: 2. Setup Taskfile
+      - name: 2. Setup Kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.30.2'
+
+      - name: 3. Install Task and Run Validation
         run: |
-          # Checa se o 'task' já existe, senão, instala
+          # Instala o Taskfile se não existir
           if ! command -v task &> /dev/null; then
             echo "Taskfile not found. Installing..."
             sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
           else
             echo "Taskfile is already installed."
           fi
-          echo "/usr/local/bin" >> $GITHUB_PATH
 
-      - name: 3. Setup Kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'v1.30.2'
-
-      - name: 4. Run Validation Task
-        run: task ci:validate 
+          # Executa a validação
+          echo "Running validation..."
+          task ci:validate
