@@ -31,4 +31,4 @@ jobs:
           mv kubeval /usr/local/bin
 
       - name: 3. Validate Kubernetes Manifests
-        run: kubeval --ignore-missing-schemas ./apps
+        run: find ./apps -type f \( -name "*.yaml" -o -name "*.yml" \) -not -name "taskfile.yml" -print0 | xargs -0 kubeval --ignore-missing-schemas
