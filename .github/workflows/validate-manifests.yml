@@ -33,6 +33,7 @@ jobs:
           else
             echo "Taskfile is already installed."
           fi
+          echo "/usr/local/bin" >> $GITHUB_PATH
 
       - name: 3. Setup Kubectl
         uses: azure/setup-kubectl@v3

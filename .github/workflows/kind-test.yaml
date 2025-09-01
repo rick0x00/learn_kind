@@ -15,6 +15,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+
+      - name: Setup Kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.30.2'
+
       - name: Show Kubernetes context
         run: |
           echo "=> Verificando o acesso ao Kubernetes de dentro do runner..."
