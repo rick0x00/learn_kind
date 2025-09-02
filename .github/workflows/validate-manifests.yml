@@ -25,11 +25,11 @@ jobs:
 
       - name: 2. Install basic dependencies
         run: |
-          - bash devops/bootstrap/install_basic_depencencies.sh
+          bash devops/bootstrap/install_basic_depencencies.sh
 
       - name: 3. Validate Kubernetes Manifests
         run: |
-          - task -d ./CICD/ validate:manifests:kubectl
-          - task -d ./CICD/ validate:manifests:kubeval
-          - task -d ./CICD/ validate:helmfiles
+          task -d ./CICD/ validate:manifests:kubectl
+          task -d ./CICD/ validate:manifests:kubeval
+          task -d ./CICD/ validate:helmfiles
 
