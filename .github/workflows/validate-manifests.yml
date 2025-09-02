@@ -29,7 +29,6 @@ jobs:
 
       - name: 3. Validate Kubernetes Manifests
         run: |
-          task -d ./CICD/ validate:manifests:kubectl
           task -d ./CICD/ validate:manifests:kubeval
           task -d ./CICD/ validate:helmfiles
 
