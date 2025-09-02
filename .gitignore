@@ -1,2 +1,5 @@
 *.pem
 notes.md
+default_values_ref/
+
+.env

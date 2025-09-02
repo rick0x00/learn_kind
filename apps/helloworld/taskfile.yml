@@ -1,0 +1,14 @@
+version: '3'
+
+
+tasks:
+
+  helloworld:install:
+    desc: "Installs the Hello World application."
+    cmds:
+      - kubectl apply -f ./manifests/
+
+  helloworld:delete:
+    desc: "Deletes all resources in the manifests folder."
+    cmds:
+      - kubectl delete -f ./manifests/ --ignore-not-found

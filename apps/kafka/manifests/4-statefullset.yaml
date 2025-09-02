@@ -1,0 +1,78 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: kafka
+spec:
+  serviceName: "kafka-service"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+        - name: kafka
+          image: apache/kafka:latest
+          ports:
+            - containerPort: 9092
+              name: kafka
+            - containerPort: 9093
+              name: controller
+
+          command:
+            - "/bin/bash"
+            - "-c"
+            - |
+              # 1. Define variáveis
+              export NODE_ID=${HOSTNAME##*-}
+              CONFIG_FILE="/tmp/server.properties"
+              
+              # 2. Gera a string dos voters
+              QUORUM_VOTERS=""
+              for i in $(seq 0 2); do # Loop fixo para 3 réplicas
+                QUORUM_VOTERS+="${i}@kafka-${i}.kafka-service.kafka.svc.cluster.local:9093,"
+              done
+              
+              # 3. Cria um arquivo de configuração do ZERO com todas as propriedades
+              echo "process.roles=broker,controller" > $CONFIG_FILE
+              echo "node.id=${NODE_ID}" >> $CONFIG_FILE
+              echo "controller.quorum.voters=${QUORUM_VOTERS%,}" >> $CONFIG_FILE
+              echo "listeners=PLAINTEXT://:9092,CONTROLLER://:9093" >> $CONFIG_FILE
+              echo "advertised.listeners=PLAINTEXT://${HOSTNAME}.kafka-service.kafka.svc.cluster.local:9092" >> $CONFIG_FILE
+              echo "controller.listener.names=CONTROLLER" >> $CONFIG_FILE
+              echo "log.dirs=/var/lib/kafka/data" >> $CONFIG_FILE
+              echo "cluster.id=${KAFKA_CLUSTER_ID}" >> $CONFIG_FILE
+
+              # 4. Formata o disco com base neste arquivo de configuração explícito
+              /opt/kafka/bin/kafka-storage.sh format -c $CONFIG_FILE -t $KAFKA_CLUSTER_ID --ignore-formatted
+              
+              # 5. Inicia o servidor com o mesmo arquivo, sem depender de mais nada
+              /opt/kafka/bin/kafka-server-start.sh $CONFIG_FILE
+          env:
+            # A única variável que precisamos é a do ID do cluster para o script usar
+            - name: KAFKA_CLUSTER_ID
+              value: "zL1-a3TqS8W_p4-z7_A_4w" # <-- Mantenha seu ID de cluster Fixo
+
+
+          volumeMounts:
+            - name: kafka-storage
+              mountPath: /var/lib/kafka/data
+      # volumes:
+      #   - name: kafka-storage
+      #     persistentVolumeClaim:
+      #       claimName: kafka-pvc
+
+ # Usamos volumeClaimTemplates para que cada réplica tenha seu próprio PVC
+  volumeClaimTemplates:
+  - metadata:
+      name: kafka-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi

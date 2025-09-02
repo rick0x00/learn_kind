@@ -79,3 +79,34 @@ kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.
 
 
 kubectl run -it --rm --image=busybox:1.28 dns-test -- nslookup kafka-sts-0.kafka-service.kafka.svc.cluster.local
+
+
+EXCLUDED_DIRS=" -path ./.git -o -path ./default_values_ref"
+find . \( $EXCLUDED_DIRS \) -prune -o -type f -exec bash -c "echo '### => {}'" \;
+### => ./.github/workflows/validate-manifests.yml
+### => ./apps/helloworld/1-namespace.yaml
+### => ./apps/helloworld/2-deployment.yaml
+### => ./apps/helloworld/3-service-ingress.yaml
+### => ./apps/kafka/1-namespace.yaml
+### => ./apps/kafka/2-zookeeper.yaml
+### => ./apps/kafka/3-kafka.yaml
+### => ./apps/kafka/4-kafka-ui.yaml
+### => ./apps/kafka/5-init-kafka.yaml
+### => ./apps/kafka/6-kafka-ui-ingress.yaml
+### => ./argocd-apps/appset-discover-apps.yaml
+### => ./argocd-apps/kafka-app.yaml
+### => ./argocd-values.yaml
+### => ./grafana-values.yaml
+### => ./helmfile.yaml
+### => ./install_task-manager.sh
+### => ./kind-config-ingress.yaml
+### => ./LICENSE
+### => ./notes.md
+### => ./README.md
+### => ./Taskfile.yml
+
+
+EXCLUDED_DIRS=" -path ./.git -o -path ./default_values_ref"
+find . \( $EXCLUDED_DIRS \) -prune -o -type f -exec bash -c "echo '### => {}' ; cat {} " \;
+
+

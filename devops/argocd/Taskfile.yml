@@ -1,0 +1,47 @@
+# Taskfile.yml
+
+# docs: https://taskfile.dev/
+
+version: '3'
+
+tasks:
+  default:
+    desc: "Lists all available tasks."
+    cmds:
+      - task --list-all
+
+  full-setup:
+    desc: "Performs a full setup: installs ArgoCD and applies initial settings."
+    deps: [argocd:install, argocd:setting]
+
+  argocd:install:
+    desc: "Installs ArgoCD using Helmfile."
+    cmds:
+      - helmfile -f ./helmfiles/helmfile.yml sync
+    status:
+      #- 'kubectl get pods -n argocd | grep argocd-server'
+      #- 'kubectl wait --namespace argocd --for=condition=ready pod --all --timeout=300s'
+      - 'kubectl wait --namespace argocd --for=condition=ready pod --selector=app.kubernetes.io/name=argocd-server --timeout=180s'
+
+  argocd:setting:
+    desc: "Sets up ArgoCD initial settings."
+    deps: [argocd:install]
+    cmds:
+      - kubectl apply -n argocd -f ./appset-discover-apps.yaml
+    status:
+      - 'kubectl get appset -n argocd | grep discover-apps'
+      - 'kubectl get applicationset discover-apps-in-git -n argocd'
+
+  argocd:password:
+    desc: "Retrieves the initial ArgoCD admin password."
+    cmds:
+      - |
+        echo "Initial ArgoCD admin password:"
+        kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 --decode; echo
+
+  argocd:uninstall:
+    desc: "Uninstalls ArgoCD."
+    cmds:
+      - helmfile -f ./helmfiles/helmfile.yml destroy
+    status:
+      - 'test $(kubectl get ns | grep argocd | wc -l) -eq 0'

@@ -1,0 +1,81 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-monitoring-ui
+  namespace: kafka
+  labels:
+    app: kafka-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-ui
+  template:
+    metadata:
+      labels:
+        app: kafka-ui
+    spec:
+      containers:
+      - name: kafka-ui
+        image: provectuslabs/kafka-ui:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: KAFKA_CLUSTERS_0_NAME
+          value: "local"
+        - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
+          value: "kafka-0.kafka-service.kafka.svc.cluster.local:9092,kafka-1.kafka-service.kafka.svc.cluster.local:9092,kafka-2.kafka-service.kafka.svc.cluster.local:9092"
+        - name: AUTH_TYPE
+          value: "LOGIN_FORM"
+        - name: SPRING_SECURITY_USER_NAME
+          value: "admin"
+        - name: SPRING_SECURITY_USER_PASSWORD
+          value: "super_secret"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-ui
+  namespace: kafka
+spec:
+  ports:
+  - port: 8082
+    targetPort: 8080
+  selector:
+    app: kafka-ui
+  # type: LoadBalancer # use for port forwarding
+  type: ClusterIP 
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kafka-ui-ingress
+  namespace: kafka
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: "kafkaui.local"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kafka-ui
+            port:
+              number: 8082
+
+
+# kubectl delete statefulset kafka -n kafka
+# kubectl delete service kafka-hs kafka-cs -n kafka
+# kubectl delete pvc datadir-kafka-0 datadir-kafka-1 datadir-kafka-2 -n kafka
+
+
+## kubectl apply -f 3-kafka.yaml
+## kubectl get pods -n kafka -l app=kafka --watch
+## kubectl get svc -n kafka -l app=kafka --watch
+

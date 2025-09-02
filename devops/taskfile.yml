@@ -1,0 +1,26 @@
+# Taskfile.yml
+
+version: '3'
+
+dotenv:
+  - '../.env'  
+
+includes:
+  bootstrap: 
+    taskfile: ./bootstrap/taskfile.yml
+    dir: ./bootstrap/
+
+  github-runner: 
+    taskfile: ./github-runner/taskfile.yml
+    dir: ./github-runner/
+
+  argocd: 
+    taskfile: ./argocd/taskfile.yml
+    dir: ./argocd/
+
+
+tasks:
+  default:
+    desc: "Lists all available tasks."
+    cmds:
+      - task --list-all

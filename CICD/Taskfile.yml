@@ -1,0 +1,64 @@
+# Taskfile.yml
+
+# docs: https://taskfile.dev/
+
+
+version: '3'
+
+tasks:
+  default:
+    desc: "Lists all available tasks."
+    cmds:
+      - task --list-all
+
+  validate:manifests:kubectl:
+    desc: "Runs lint and validation checks for CI/CD pipelines."
+    cmds:
+      - |
+        cd ../
+        echo "▶️  Starting Kubernetes manifest validation..."
+        VALID=true
+        find ./apps -type f \( -name "*.yaml" -o -name "*.yml" \) -not -name "taskfile.yml" | while read -r file; do
+          echo "# Checking file: $file"
+          if ! kubectl apply -f "$file" --dry-run=client > /dev/null; then
+            echo "❌ Validation FAILED for $file"
+            VALID=false
+          fi
+        done
+        if [ "$VALID" = "false" ]; then
+          echo "# One or more manifest validations failed."
+          exit 1
+        fi
+        echo "✅ All Kubernetes manifests are valid!"
+        echo
+
+
+  validate:helmfiles:
+    desc: "Validates all Helmfiles in the repository."
+    cmds:
+      - |
+        cd ../
+        echo "▶️  Starting helmfiles validation..."
+        VALID=true
+        find ./apps -type f \( -name "helmfile.yaml" -o -name "helmfile.yml" \) | while read -r file; do
+          echo "# Checking file: $file"
+          if ! helmfile lint -f "$file" > /dev/null; then
+            echo "❌ Validation FAILED for $file"
+            VALID=false
+          fi
+        done
+        if [ "$VALID" = "false" ]; then
+          echo "# One or more helmfiles validations failed."
+          exit 1
+        fi
+        echo "✅ All Kubernetes helmfiles are valid!"
+        echo
+
+
+  validate:manifests:kubeval:
+    desc: "Validates all Kubernetes manifests in the apps directory."
+    cmds:
+      - |
+        cd ../
+        find ./apps -type f \( -name "*.yaml" -o -name "*.yml" \) -not -name "taskfile.yml" -print0 | xargs -0 kubeval --ignore-missing-schemas  
+

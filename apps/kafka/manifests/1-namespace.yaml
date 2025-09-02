@@ -1,0 +1,7 @@
+# apps/kafka/1-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka
+
+# kubectl apply -f 1-namespace.yaml

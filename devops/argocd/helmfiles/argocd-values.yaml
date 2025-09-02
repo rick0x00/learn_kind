@@ -1,25 +1,4 @@
 # argocd-values.yaml
-
-# server:
-#   ingress:
-#     enabled: true
-#     ingressClassName: nginx
-#     hosts:
-#       - argocd.test 
-#     https: false
-
-
-# redis-ha:
-#   enabled: false
-
-# # Garante que o controller não use um volume persistente
-# controller:
-#   metrics:
-#     enabled: true
-#   persistence:
-#     enabled: false
-
-
 config:
   params:
     server.insecure: true

@@ -1,0 +1,19 @@
+version: '3'
+
+tasks:
+
+  kafka:install:
+    desc: "Installs Kafka."
+    cmds:
+      - kubectl apply -f ./manifests/
+  
+  kubectl:delete:
+    desc: "Deletes all resources in the manifests folder."
+    cmds:
+      - kubectl delete -f ./manifests/ --ignore-not-found
+  
+  kubectl:show:
+    desc: "Shows all resources in the manifests folder."
+    cmds:
+      - kubectl get all -l app=kafka -o wide -n kafka
+      - kubectl get all -n kafka -o wide

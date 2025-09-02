@@ -1,0 +1,16 @@
+# helmfile.yaml 
+
+repositories:
+  - name: argo
+    url: https://argoproj.github.io/argo-helm
+
+releases:
+  - name: argocd
+    chart: argo/argo-cd
+    version: "6.7.13"
+    namespace: argocd
+    createNamespace: true
+    labels:
+      resource: argocd
+    values:
+      - ./argocd-values.yaml

@@ -1,0 +1,23 @@
+version: '3'
+
+# vars:
+#   GRAFANA_RELEASE: my-grafana
+
+includes:
+  grafana: 
+    taskfile: ./grafana/taskfile.yml
+    dir: ./grafana/
+
+  helloworld: 
+    taskfile: ./helloworld/taskfile.yml
+    dir: ./helloworld/
+
+  kafka: 
+    taskfile: ./kafka/taskfile.yml
+    dir: ./kafka/
+
+tasks:
+  default:
+    desc: "Lists all available tasks."
+    cmds:
+      - task --list-all

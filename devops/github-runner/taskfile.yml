@@ -1,0 +1,87 @@
+# Taskfile.yml (main Taskfile)
+version: '3'
+
+# gitlab-runner/taskfile.yml
+
+# https://medium.com/simform-engineering/how-to-setup-self-hosted-github-action-runner-on-kubernetes-c8825ccbb63c
+# https://dev.to/viradiaharsh/hosting-self-hosted-github-runners-on-kubernetes-o2d
+
+# create github APP: 
+# https://github.com/settings/apps
+# https://github.com/settings/tokens
+
+
+vars:
+  CM_NAMESPACE: cert-manager
+  CM_VERSION: v1.13.0
+
+# dotenv:
+#   - '.env'
+
+tasks:
+  default:
+    desc: "Lists all available tasks."
+    cmds:
+      - task --list-all
+
+  full-setup:
+    desc: "Performs a full setup: installs CertManager and Actions Runner Controller."
+    deps: [CertManager:install, ARCGitHub:CreateSecret, ARCGitHub:install, ARCGitHub:setting]
+
+  CertManager:install:
+    desc: "Install CertManager"
+    cmds:
+      - helm repo add jetstack https://charts.jetstack.io --force-update
+      - helm install cert-manager jetstack/cert-manager --namespace {{.CM_NAMESPACE}} --create-namespace  --version {{.CM_VERSION}} --set installCRDs=true
+    status:
+      - 'kubectl get pods -n {{.CM_NAMESPACE}} | grep cert-manager | grep Running'
+    
+
+    # CertManager:crds-install:
+    #   desc: "Install crds CertManager"
+    #   cmds:
+    #     - kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.crds.yaml
+
+  CertManager:status:
+    desc: "Check CertManager status"
+    cmds:
+      - kubectl get pods --namespace {{.CM_NAMESPACE}}
+    
+
+  ARCGitHub:namespaces:
+    desc: "Create actions namespace"
+    cmds:
+      - for i in "actions actions-runner-system github-runners" ; do kubectl create namespace $i ; done
+    status:
+      - for i in "actions actions-runner-system github-runners" ; do kubectl get namespace $i || exit 1 ; done
+
+
+  ARCGitHub:CreateSecret:
+    desc: "Create docker-registry secret in kubernetes"
+    deps: [ARCGitHub:namespaces]
+    cmds:
+      - echo {{.GITHUB_TOKEN}}
+      - kubectl create secret generic controller-manager -n actions-runner-system --from-literal=github_token={{.GITHUB_TOKEN}}
+    status:
+      - 'kubectl get secret controller-manager -n actions-runner-system'
+
+  ARCGitHub:install:
+    desc: "Install Actions Runner Controller(ARC)"
+    deps: [ARCGitHub:CreateSecret, ARCGitHub:namespaces, CertManager:install]
+    cmds:
+      - helm repo add actions-runner-controller https://actions-runner-controller.github.io/actions-runner-controller
+      - helm repo update
+      - helm install actions-runner-controller   actions-runner-controller/actions-runner-controller   --namespace actions-runner-system   --create-namespace
+    status:
+      - 'kubectl get pods -n actions-runner-system | grep actions-runner-controller | grep Running'
+
+  ARCGitHub:setting:
+    desc: "Apply runner setting"
+    deps: [ARCGitHub:install]
+    cmds:
+      - kubectl apply -f ./manifests/
+    status:
+      # - kubectl get pods -n github-runners | grep running
+      # - kubectl get runnerdeployments -n github-runners | grep github-runner-deployment
+      - kubectl diff -q -f ./manifests/
+

@@ -25,9 +25,7 @@ spec:
         - name: KAFKA_CLUSTERS_0_NAME
           value: "local"
         - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
-          value: "kafka-broker-1:29092,kafka-broker-2:29093,kafka-broker-3:29094"
-        - name: KAFKA_CLUSTERS_0_ZOOKEEPER
-          value: "zookeeper-1:2181"
+          value: "kafka-0.kafka-service.kafka.svc.cluster.local:9092,kafka-1.kafka-service.kafka.svc.cluster.local:9092,kafka-2.kafka-service.kafka.svc.cluster.local:9092"
         - name: AUTH_TYPE
           value: "LOGIN_FORM"
         - name: SPRING_SECURITY_USER_NAME
@@ -49,7 +47,27 @@ spec:
   # type: LoadBalancer # use for port forwarding
   type: ClusterIP 
 
-
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kafka-ui-ingress
+  namespace: kafka
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: "kafkaui.local"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kafka-ui
+            port:
+              number: 8082
 
 
 # kubectl delete statefulset kafka -n kafka

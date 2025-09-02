@@ -1,0 +1,82 @@
+version: '3'
+
+tasks:
+
+  kafka:install:
+    desc: "Installs Kafka."
+    cmds:
+      - kubectl apply -f ./manifests/
+  
+  kubectl:delete:
+    desc: "Deletes all resources in the manifests folder."
+    cmds:
+      - kubectl delete -f ./manifests/ --ignore-not-found
+  
+  kubectl:show:
+    desc: "Shows all resources in the manifests folder."
+    cmds:
+      # - kubectl get all -l app=kafka -o wide -n kafka
+      - kubectl get all -n kafka -o wide
+  
+  # kubectl:test:
+  #   cmds:
+  #     - kubectl exec -it -n kafka kafka-0 -- /opt/kafka/bin/kafka-topics.sh --create --topic test-topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+  #     - kubectl exec -it -n kafka kafka-0 -- /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic test-topic
+  #     - kubectl exec -it -n kafka kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka-service.kafka.svc.cluster.local:9092 --topic test-topic --partition 0 
+
+
+
+  kafka:test:
+    desc: "Runs a non-interactive end-to-end test on the Kafka cluster."
+    deps: [kafka:install]
+    silent: true
+    cmds:
+      - |
+        # Define the topic name for the test
+        UNIQUE_ID=$(date +%s)
+        TOPIC_NAME="test-topic-${UNIQUE_ID}"
+        TEST_MESSAGE="Kafka is working! - ${UNIQUE_ID}"
+        LOG_FILE="/tmp/kafka_test_output.log"
+        
+        echo "# Starting Kafka end-to-end test..."
+        
+        echo "--- Creating test topic: ${TOPIC_NAME}"
+        kubectl exec -n kafka kafka-0 -- /opt/kafka/bin/kafka-topics.sh \
+          --create \
+          --if-not-exists \
+          --topic ${TOPIC_NAME} \
+          --bootstrap-server localhost:9092 \
+          --partitions 1 \
+          --replication-factor 3
+        
+        sleep 5 
+        
+        echo "--- Starting background consumer..."
+        kubectl exec -n kafka kafka-2 -- /opt/kafka/bin/kafka-console-consumer.sh \
+          --bootstrap-server kafka-service.kafka.svc.cluster.local:9092 \
+          --topic ${TOPIC_NAME} \
+          --max-messages 1 \
+          --partition 0 \
+          --timeout-ms 15000 > ${LOG_FILE} &
+        
+        CONSUMER_PID=$!
+        
+        sleep 2
+
+        echo "--- Sending test message..."
+        echo "${TEST_MESSAGE}" | kubectl exec -i -n kafka kafka-0 -- /opt/kafka/bin/kafka-console-producer.sh \
+          --bootstrap-server kafka-service.kafka.svc.cluster.local:9092 \
+          --topic ${TOPIC_NAME}
+
+        echo "--- Waiting and validating the result..."
+        wait ${CONSUMER_PID}
+        
+        if grep -q "${TEST_MESSAGE}" ${LOG_FILE}; then
+          echo "# SUCCESS! Message received correctly."
+          kubectl exec -n kafka kafka-0 -- /opt/kafka/bin/kafka-topics.sh --delete --topic ${TOPIC_NAME} --bootstrap-server localhost:9092
+        else
+          echo "# FAILURE! Test message was not received."
+          kubectl exec -n kafka kafka-0 -- /opt/kafka/bin/kafka-topics.sh --delete --topic ${TOPIC_NAME} --bootstrap-server localhost:9092
+          exit 1
+        fi
+
