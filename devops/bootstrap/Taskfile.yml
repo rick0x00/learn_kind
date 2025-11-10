@@ -1,5 +1,4 @@
 # Taskfile.yml
-
 # docs: https://taskfile.dev/
 
 version: '3'
@@ -8,6 +7,8 @@ vars:
   KIND_VERSION: v0.23.0
   KUBECTL_VERSION: v1.30.2
   CLUSTER_NAME: wsl-dev
+  # Force all kubectl to use the local kind context
+  KUBE_CONTEXT: kind-{{.CLUSTER_NAME}}
 
 tasks:
   default:
@@ -29,7 +30,6 @@ tasks:
     cmds:
       - curl -fsSL https://get.docker.com | bash
     status:
-      # This task is up-to-date if the 'docker' command exists
       - command -v docker
 
   install:kubectl:
@@ -73,15 +73,12 @@ tasks:
     status:
       - command -v helmfile
 
-
   kind:cluster-up:
     desc: "Creates a Kind cluster named '{{.CLUSTER_NAME}}'."
     deps: [install:all]
     cmds:
       - kind create cluster --name {{.CLUSTER_NAME}} --config ./ingress/kind-config-ingress.yaml
     status:
-      # This task is up-to-date if grep finds the cluster name.
-      # If grep fails (cluster not found), the task will run.
       - 'kind get clusters | grep -q "^{{.CLUSTER_NAME}}$"'
 
   kind:cluster-down:
@@ -90,19 +87,85 @@ tasks:
       - kind delete cluster --name {{.CLUSTER_NAME}}
 
   kind:cluster-info:
-    desc: "Shows cluster info and current nodes."
+    desc: "Shows cluster info and current nodes (local kind only)."
     cmds:
-      - kubectl cluster-info --context kind-{{.CLUSTER_NAME}}
-      - kubectl get nodes
+      - kubectl cluster-info --context {{.KUBE_CONTEXT}}
+      - kubectl --context {{.KUBE_CONTEXT}} get nodes
 
   ingress:install:
-    desc: "Installs the NGINX Ingress Controller in the Kind cluster."
+    desc: "Installs the NGINX Ingress Controller in the local Kind cluster."
     deps: [kind:cluster-up]
-    cmds: 
-      - kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+    cmds:
+      - kubectl --context {{.KUBE_CONTEXT}} apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
       - echo "Waiting for ingress-nginx-controller to be ready..."
-      - kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller
+      - kubectl --context {{.KUBE_CONTEXT}} wait --namespace ingress-nginx \
+          --for=condition=ready pod \
+          --selector=app.kubernetes.io/component=controller \
           --timeout=120s
       - echo "Ingress NGINX Controller installed and ready!"
     status:
-      - 'kubectl get pods -n ingress-nginx | grep ingress-nginx-controller | grep Running'
+      - 'kubectl --context {{.KUBE_CONTEXT}} get pods -n ingress-nginx | grep ingress-nginx-controller | grep Running'
+
+  setup:metrics-server-kind:
+    desc: "Installs/patches metrics-server to work properly on local KIND (TLS + insecure kubelet)."
+    cmds:
+      - set -euo pipefail
+
+      # 1) Install official manifest on local context only
+      - kubectl --context {{.KUBE_CONTEXT}} apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+      # 2) Wait for initial rollout
+      - kubectl --context {{.KUBE_CONTEXT}} -n kube-system rollout status deploy/metrics-server
+
+      # 3) Adjust args (port 4443 + insecure kubelet TLS for KIND)
+      - |
+        kubectl --context {{.KUBE_CONTEXT}} -n kube-system patch deploy metrics-server --type='json' -p='[
+          {"op":"replace","path":"/spec/template/spec/containers/0/args","value":[
+            "--cert-dir=/tmp",
+            "--secure-port=4443",
+            "--kubelet-insecure-tls",
+            "--kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP",
+            "--metric-resolution=15s",
+            "--v=2"
+          ]}
+        ]'
+
+      # 4) Ensure named "https" port on container
+      - |
+        kubectl --context {{.KUBE_CONTEXT}} -n kube-system patch deploy metrics-server --type='json' -p='[
+          {"op":"add","path":"/spec/template/spec/containers/0/ports","value":[
+            {"name":"https","containerPort":4443,"protocol":"TCP"}
+          ]}
+        ]' || kubectl --context {{.KUBE_CONTEXT}} -n kube-system patch deploy metrics-server --type='json' -p='[
+          {"op":"add","path":"/spec/template/spec/containers/0/ports/-","value":
+            {"name":"https","containerPort":4443,"protocol":"TCP"}
+          }
+        ]'
+
+      # 5) Patch Service (443 -> targetPort 4443, named https)
+      - |
+        kubectl --context {{.KUBE_CONTEXT}} -n kube-system patch svc metrics-server --type='json' -p='[
+          {"op":"replace","path":"/spec/ports/0","value":{
+            "name":"https","port":443,"protocol":"TCP","targetPort":4443
+          }}
+        ]'
+
+      # 6) Restart and wait
+      - kubectl --context {{.KUBE_CONTEXT}} -n kube-system rollout restart deploy/metrics-server
+      - kubectl --context {{.KUBE_CONTEXT}} -n kube-system rollout status deploy/metrics-server
+
+      # 7) Wait for metrics.k8s.io API to be Available=True
+      - |
+        bash -ceu 'for i in {1..30}; do
+          cond=$(kubectl --context {{.KUBE_CONTEXT}} get apiservice v1beta1.metrics.k8s.io -o jsonpath="{.status.conditions[?(@.type==\"Available\")].status}" 2>/dev/null || true)
+          if [ "$cond" = "True" ]; then
+            echo "metrics.k8s.io Available=True"
+            exit 0
+          fi
+          echo "Aguardando metrics API... ($i)"
+          sleep 2
+        done; echo "metrics API ainda indisponível"; exit 1'
+
+      # 8) Sanity checks (do not fail task if top is still empty)
+      - kubectl --context {{.KUBE_CONTEXT}} top nodes || true
+      - kubectl --context {{.KUBE_CONTEXT}} -n evolution-api top pods || true
