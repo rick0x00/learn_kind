@@ -111,13 +111,13 @@ tasks:
     cmds:
       - set -euo pipefail
 
-      # 1) Install official manifest on local context only
+      # 1) Instala o manifest oficial no contexto local
       - kubectl --context {{.KUBE_CONTEXT}} apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
-      # 2) Wait for initial rollout
+      # 2) Aguarda o deploy aparecer (primeiro rollout)
       - kubectl --context {{.KUBE_CONTEXT}} -n kube-system rollout status deploy/metrics-server
 
-      # 3) Adjust args (port 4443 + insecure kubelet TLS for KIND)
+      # 3) Ajusta args p/ rodar em 4443 + aceitar certificados do kubelet no KIND
       - |
         kubectl --context {{.KUBE_CONTEXT}} -n kube-system patch deploy metrics-server --type='json' -p='[
           {"op":"replace","path":"/spec/template/spec/containers/0/args","value":[
@@ -130,19 +130,27 @@ tasks:
           ]}
         ]'
 
-      # 4) Ensure named "https" port on container
+      # 4) Garante a porta nomeada "https" no container, mas só se ainda não existir
       - |
-        kubectl --context {{.KUBE_CONTEXT}} -n kube-system patch deploy metrics-server --type='json' -p='[
-          {"op":"add","path":"/spec/template/spec/containers/0/ports","value":[
-            {"name":"https","containerPort":4443,"protocol":"TCP"}
-          ]}
-        ]' || kubectl --context {{.KUBE_CONTEXT}} -n kube-system patch deploy metrics-server --type='json' -p='[
-          {"op":"add","path":"/spec/template/spec/containers/0/ports/-","value":
-            {"name":"https","containerPort":4443,"protocol":"TCP"}
-          }
-        ]'
+        HTTPS_PORT=$(kubectl --context {{.KUBE_CONTEXT}} -n kube-system \
+          get deploy metrics-server -o jsonpath='{.spec.template.spec.containers[0].ports[?(@.name=="https")].containerPort}' 2>/dev/null || true)
 
-      # 5) Patch Service (443 -> targetPort 4443, named https)
+        if [ "$HTTPS_PORT" != "4443" ]; then
+          echo "Patching container ports to add https:4443..."
+          kubectl --context {{.KUBE_CONTEXT}} -n kube-system patch deploy metrics-server --type='json' -p='[
+            {"op":"add","path":"/spec/template/spec/containers/0/ports","value":[
+              {"name":"https","containerPort":4443,"protocol":"TCP"}
+            ]}
+          ]' || kubectl --context {{.KUBE_CONTEXT}} -n kube-system patch deploy metrics-server --type='json' -p='[
+            {"op":"add","path":"/spec/template/spec/containers/0/ports/-","value":
+              {"name":"https","containerPort":4443,"protocol":"TCP"}
+            }
+          ]'
+        else
+          echo "metrics-server already has https:4443 port, skipping port patch."
+        fi
+
+      # 5) Ajusta o Service (443 -> targetPort 4443) e nome da porta "https"
       - |
         kubectl --context {{.KUBE_CONTEXT}} -n kube-system patch svc metrics-server --type='json' -p='[
           {"op":"replace","path":"/spec/ports/0","value":{
@@ -150,11 +158,11 @@ tasks:
           }}
         ]'
 
-      # 6) Restart and wait
+      # 6) Reinicia e espera ficar ok
       - kubectl --context {{.KUBE_CONTEXT}} -n kube-system rollout restart deploy/metrics-server
       - kubectl --context {{.KUBE_CONTEXT}} -n kube-system rollout status deploy/metrics-server
 
-      # 7) Wait for metrics.k8s.io API to be Available=True
+      # 7) Espera a API de métricas ficar Available=True (até ~60s)
       - |
         bash -ceu 'for i in {1..30}; do
           cond=$(kubectl --context {{.KUBE_CONTEXT}} get apiservice v1beta1.metrics.k8s.io -o jsonpath="{.status.conditions[?(@.type==\"Available\")].status}" 2>/dev/null || true)
@@ -166,6 +174,6 @@ tasks:
           sleep 2
         done; echo "metrics API ainda indisponível"; exit 1'
 
-      # 8) Sanity checks (do not fail task if top is still empty)
+      # 8) Sanity checks (não falham a task se 'top' não retornar nada ainda)
       - kubectl --context {{.KUBE_CONTEXT}} top nodes || true
       - kubectl --context {{.KUBE_CONTEXT}} -n evolution-api top pods || true
