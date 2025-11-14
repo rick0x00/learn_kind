@@ -16,6 +16,10 @@ includes:
     taskfile: ./kafka/taskfile.yml
     dir: ./kafka/
 
+  harbor: 
+    taskfile: ./harbor/taskfile.yml
+    dir: ./harbor/
+
 tasks:
   default:
     desc: "Lists all available tasks."
