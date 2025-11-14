@@ -1,0 +1,52 @@
+# .github/workflows/test-helmfile-plugins.yml
+name: Test Helmfile plugins with Helm 4
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  test-helmfile-plugins:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Helmfile and Helm
+        uses: helmfile/helmfile-action@v2
+        with:
+          helm-version: latest
+          helmfile-version: latest
+          helm-plugins: ""
+          helmfile-args: version
+
+      - name: Show Helm and Helmfile versions
+        run: |
+          set -e
+          echo "Helm version:"
+          helm version
+          echo "Helmfile version:"
+          helmfile --version
+
+      - name: Install Helm plugins manually with verify=false
+        run: |
+          set -euo pipefail
+
+          echo "Installing helm-diff..."
+          helm plugin install https://github.com/databus23/helm-diff \
+            --version v3.9.7 \
+            --verify=false
+
+          echo "Installing helm-git..."
+          helm plugin install https://github.com/aslafy-z/helm-git \
+            --verify=false
+
+          echo
+          echo "Installed plugins:"
+          helm plugin list
+
+      - name: Test helmfile diff subcommand
+        run: |
+          set -e
+          # This should print help and exit 0 if everything is ok
+          helmfile diff --help
